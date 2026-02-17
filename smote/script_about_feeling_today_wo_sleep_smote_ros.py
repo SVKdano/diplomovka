@@ -1,12 +1,16 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, mean_absolute_error
+
+from imblearn.over_sampling import SMOTE, RandomOverSampler
+from imblearn.pipeline import Pipeline  # dôležité: imblearn Pipeline
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -75,36 +79,56 @@ def load_and_preprocess_data(file_path: str, target_col: str) -> tuple[pd.DataFr
 
 
 # --------------------------------------------------
-# 3) Hľadanie najlepšieho modelu (dynamické CV)
+# 3) Hľadanie najlepšieho modelu (CV-safe sampler v pipeline)
+#    - SMOTE ak je to bezpečné, inak fallback na ROS
 # --------------------------------------------------
-def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeClassifier:
+def find_best_model_smote_or_ros(X_train: pd.DataFrame, y_train: pd.Series) -> Pipeline:
+    min_class = int(y_train.value_counts().min())
+
+    # CV foldy: max 5, ale nie viac než min_class
+    cv_folds = int(max(2, min(5, min_class)))
+    cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
+
+    # SMOTE je bezpečné až keď máš aspoň 3 vzorky v menšinovej triede
+    # (aby sa v tréningových foldoch nestratila trieda na 1 vzorku)
+    use_smote = min_class >= 3
+
+    if use_smote:
+        k_neighbors = min(5, min_class - 1)
+        sampler = SMOTE(random_state=42, k_neighbors=k_neighbors)
+        sampler_name = f"SMOTE(k_neighbors={k_neighbors})"
+    else:
+        sampler = RandomOverSampler(random_state=42)
+        sampler_name = "ROS(fallback)"
+
+    print("\n--- Nastavenie vyvažovania tried ---")
+    print(f"min_class(train)={min_class}")
+    print(f"cv={cv_folds} (StratifiedKFold)")
+    print(f"Používam: {sampler_name}")
+
+    pipe = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="median")),
+        ("sampler", sampler),
+        ("clf", DecisionTreeClassifier(random_state=42))
+    ])
+
     param_grid = {
-        "max_depth": [None, 3, 4, 5, 6, 8, 10, 12],
-        "min_samples_leaf": [1, 2, 5, 10],
-        "min_samples_split": [2, 5, 10],
-        "max_features": [None, "sqrt", "log2"],
-        "criterion": ["gini", "entropy"],
+        "clf__max_depth": [None, 3, 4, 5, 6, 8, 10, 12],
+        "clf__min_samples_leaf": [1, 2, 5, 10],
+        "clf__min_samples_split": [2, 5, 10],
+        "clf__max_features": [None, "sqrt", "log2"],
+        "clf__criterion": ["gini", "entropy"],
     }
 
-    clf = DecisionTreeClassifier(
-        random_state=42,
-        class_weight="balanced"
-    )
-
-    # dynamické CV: nesmie byť viac foldov ako min počet vzoriek v triede
-    min_class = int(y_train.value_counts().min())
-    cv_folds = int(max(2, min(10, min_class)))  # aspoň 2, max 10
-
-    print("\nSpúšťam GridSearch...")
-    print(f"Min počet vzoriek v triede (train): {min_class} -> používam cv={cv_folds}")
-    print("Optimalizujem: f1_macro")
+    print("\nSpúšťam GridSearch (optimalizujem f1_macro)...")
 
     grid = GridSearchCV(
-        clf,
+        pipe,
         param_grid,
-        cv=cv_folds,
+        cv=cv,
         scoring="f1_macro",
-        n_jobs=-1
+        n_jobs=-1,
+        error_score="raise"
     )
 
     grid.fit(X_train, y_train)
@@ -119,7 +143,9 @@ def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeCl
 # 4) MAIN
 # --------------------------------------------------
 def main():
-    FILE_PATH = "datasets/Dokazník_merged_adjusted.csv"
+    os.makedirs("outputs", exist_ok=True)
+
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today_cycling_only_minutes_total_activ.csv"
     TARGET_COL = "Ako sa dnes cítite po zdravotnej stránke od 1 po 10? (1 - zle, 10 - dobre)"
 
     X, y = load_and_preprocess_data(FILE_PATH, TARGET_COL)
@@ -140,18 +166,17 @@ def main():
             X, y, test_size=0.2, random_state=42, stratify=y
         )
 
-    # imputácia chýbajúcich hodnôt
-    imputer = SimpleImputer(strategy="median")
-    X_train_imp = pd.DataFrame(imputer.fit_transform(X_train), columns=X.columns, index=X_train.index)
-    X_test_imp = pd.DataFrame(imputer.transform(X_test), columns=X.columns, index=X_test.index)
+    print("\nRozdelenie tried v train (pred vyvažovaním):")
+    print(y_train.value_counts().sort_index())
+    print("Rozdelenie tried v test:")
+    print(y_test.value_counts().sort_index())
 
-    # model
-    best_model = find_best_model(X_train_imp, y_train)
+    # model (SMOTE alebo fallback ROS)
+    best_model = find_best_model_smote_or_ros(X_train, y_train)
 
-    # predikcia
-    y_pred = best_model.predict(X_test_imp)
+    # predikcia (pipeline si imputuje sám; sampler sa pri predict nepoužíva)
+    y_pred = best_model.predict(X_test)
 
-    # labely
     labels = sorted(np.unique(y_test))
     target_names = [str(x) for x in labels]
 
@@ -175,34 +200,34 @@ def main():
     )
     plt.xlabel("Predpovedané")
     plt.ylabel("Skutočné")
-    plt.title("Matica zámien (Confusion Matrix) - Feeling 1–10")
+    plt.title("Matica zámien (Confusion Matrix) - Feeling 1–10 (SMOTE/ROS)")
     plt.tight_layout()
-    plt.savefig("outputs/matrix_feeling", bbox_inches="tight")
+    plt.savefig("outputs/matrix_feeling_smote_or_ros.png", bbox_inches="tight", dpi=300)
     plt.show()
 
     # --- Feature importance ---
-    importances = pd.Series(best_model.feature_importances_, index=X.columns).sort_values(ascending=False)
+    clf = best_model.named_steps["clf"]
+    importances = pd.Series(clf.feature_importances_, index=X.columns).sort_values(ascending=False)
     plt.figure(figsize=(10, 6))
     importances.head(10).sort_values().plot(kind="barh")
-    plt.title("Top 10 faktorov ovplyvňujúcich zdravotný pocit (1–10)")
+    plt.title("Top 10 faktorov ovplyvňujúcich zdravotný pocit (1–10) – SMOTE/ROS")
     plt.xlabel("Dôležitosť (Gini importance)")
     plt.tight_layout()
-    plt.savefig("outputs/factors_feeling.png", bbox_inches="tight")
+    plt.savefig("outputs/factors_feeling_smote_or_ros.png", bbox_inches="tight", dpi=300)
     plt.show()
 
     # --- Dynamická vizualizácia stromu podľa skutočnej hĺbky ---
-    tree_depth = best_model.get_depth()
-    tree_leaves = best_model.get_n_leaves()
+    tree_depth = clf.get_depth()
+    tree_leaves = clf.get_n_leaves()
     print(f"\nSkutočná hĺbka stromu: {tree_depth}")
     print(f"Počet listov (leaves): {tree_leaves}")
 
-    # zobraz celý, ak je malý, inak obmedz (napr. na 5)
     plot_depth = tree_depth if tree_depth <= 5 else 5
     print(f"Zobrazujem do hĺbky: {plot_depth}")
 
     plt.figure(figsize=(30, 14))
     plot_tree(
-        best_model,
+        clf,
         feature_names=X.columns,
         class_names=[str(i) for i in sorted(np.unique(y_train))],
         filled=True,
@@ -210,8 +235,8 @@ def main():
         fontsize=8,
         max_depth=plot_depth
     )
-    plt.title(f"Rozhodovací strom (zobrazené prvé {plot_depth} úrovne z {tree_depth})")
-    out_name = "outputs/final_tree_feeling.png"
+    plt.title(f"Rozhodovací strom – prvé {plot_depth} úrovne z {tree_depth} (SMOTE/ROS)")
+    out_name = "outputs/final_tree_feeling_smote_or_ros.png"
     plt.savefig(out_name, bbox_inches="tight", dpi=300)
     plt.show()
     print(f"\nStrom uložený ako '{out_name}'")

@@ -119,7 +119,11 @@ def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeCl
 # 4) MAIN
 # --------------------------------------------------
 def main():
-    FILE_PATH = "datasets/Dokazník_merged_adjusted.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today_cycling.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today_cycling_only_minutes.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today_cycling_only_minutes_total_activ.csv"
     TARGET_COL = "Ako sa dnes cítite po zdravotnej stránke od 1 po 10? (1 - zle, 10 - dobre)"
 
     X, y = load_and_preprocess_data(FILE_PATH, TARGET_COL)
@@ -177,7 +181,7 @@ def main():
     plt.ylabel("Skutočné")
     plt.title("Matica zámien (Confusion Matrix) - Feeling 1–10")
     plt.tight_layout()
-    plt.savefig("outputs/matrix_feeling", bbox_inches="tight")
+    plt.savefig("outputs/matrix_feeling_wo_sleep", bbox_inches="tight")
     plt.show()
 
     # --- Feature importance ---
@@ -187,7 +191,7 @@ def main():
     plt.title("Top 10 faktorov ovplyvňujúcich zdravotný pocit (1–10)")
     plt.xlabel("Dôležitosť (Gini importance)")
     plt.tight_layout()
-    plt.savefig("outputs/factors_feeling.png", bbox_inches="tight")
+    plt.savefig("outputs/factors_feeling_wo_sleep.png", bbox_inches="tight")
     plt.show()
 
     # --- Dynamická vizualizácia stromu podľa skutočnej hĺbky ---
@@ -211,11 +215,6 @@ def main():
         max_depth=plot_depth
     )
     plt.title(f"Rozhodovací strom (zobrazené prvé {plot_depth} úrovne z {tree_depth})")
-    out_name = "outputs/final_tree_feeling.png"
+    out_name = "outputs/final_tree_feeling_wo_feeling.png"
     plt.savefig(out_name, bbox_inches="tight", dpi=300)
     plt.show()
-    print(f"\nStrom uložený ako '{out_name}'")
-
-
-if __name__ == "__main__":
-    main()

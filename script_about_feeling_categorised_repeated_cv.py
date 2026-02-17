@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, mean_absolute_error
@@ -29,6 +29,15 @@ def auto_detect_columns_to_drop(df: pd.DataFrame) -> list[str]:
 # --------------------------------------------------
 # 2) Načítanie a predspracovanie dát
 # --------------------------------------------------
+def categorize_feeling(score: int) -> int:
+    """Diskretizácia zdravotného pocitu:
+    0 = zle (1-5), 1 = dobre (6-10)
+    """
+    if score <= 5:
+        return 0
+    return 1
+
+
 def load_and_preprocess_data(file_path: str, target_col: str) -> tuple[pd.DataFrame, pd.Series]:
     print(f"Načítavam súbor: {file_path}")
     df = pd.read_csv(file_path, sep=";", decimal=",")
@@ -56,6 +65,8 @@ def load_and_preprocess_data(file_path: str, target_col: str) -> tuple[pd.DataFr
     valid_mask = y.between(1, 10)
     X = X.loc[valid_mask].copy()
     y = y.loc[valid_mask].astype(int)
+    y_raw = y.copy()
+    y = y.apply(categorize_feeling).astype(int)
 
     # iba numerické vstupy
     X = X.select_dtypes(include=[np.number]).copy()
@@ -68,7 +79,11 @@ def load_and_preprocess_data(file_path: str, target_col: str) -> tuple[pd.DataFr
         X = X.drop(columns=const_cols)
 
     print(f"Počet vzoriek: {len(X)} | Počet feature: {X.shape[1]}")
-    print("Rozdelenie cieľovej premennej (po filtrovaní 1–10):")
+    print("Rozdelenie pôvodnej cieľovej premennej (1–10):")
+    print(y_raw.value_counts().sort_index())
+    print("\nPoužitá kategorizácia cieľa:")
+    print("0 = zle (1–5), 1 = dobre (6–10)")
+    print("Rozdelenie kategórií:")
     print(y.value_counts().sort_index())
 
     return X, y
@@ -79,10 +94,10 @@ def load_and_preprocess_data(file_path: str, target_col: str) -> tuple[pd.DataFr
 # --------------------------------------------------
 def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeClassifier:
     param_grid = {
-        "max_depth": [None, 3, 4, 5, 6, 8, 10, 12],
-        "min_samples_leaf": [1, 2, 5, 10],
+        "max_depth": [None, 3, 5, 8, 12],
+        "min_samples_leaf": [1, 2, 5],
         "min_samples_split": [2, 5, 10],
-        "max_features": [None, "sqrt", "log2"],
+        "max_features": [None, "sqrt"],
         "criterion": ["gini", "entropy"],
     }
 
@@ -94,6 +109,7 @@ def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeCl
     # dynamické CV: nesmie byť viac foldov ako min počet vzoriek v triede
     min_class = int(y_train.value_counts().min())
     cv_folds = int(max(2, min(10, min_class)))  # aspoň 2, max 10
+    cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
 
     print("\nSpúšťam GridSearch...")
     print(f"Min počet vzoriek v triede (train): {min_class} -> používam cv={cv_folds}")
@@ -102,7 +118,7 @@ def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeCl
     grid = GridSearchCV(
         clf,
         param_grid,
-        cv=cv_folds,
+        cv=cv,
         scoring="f1_macro",
         n_jobs=-1
     )
@@ -114,24 +130,33 @@ def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeCl
 
     return grid.best_estimator_
 
-
 # --------------------------------------------------
 # 4) MAIN
 # --------------------------------------------------
 def main():
-    FILE_PATH = "datasets/Dokazník_merged_adjusted.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today_cycling.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today_cycling_only_minutes.csv"
+    FILE_PATH = "datasets/Dokazník_feeling_wo_datetime_feeling_today_cycling_only_minutes_total_activ.csv"
     TARGET_COL = "Ako sa dnes cítite po zdravotnej stránke od 1 po 10? (1 - zle, 10 - dobre)"
+    CLASS_NAMES = {
+        0: "Zle (1–5)",
+        1: "Dobre (6–10)",
+    }
 
     X, y = load_and_preprocess_data(FILE_PATH, TARGET_COL)
 
-    # --- robustné rozdelenie train/test: stratify len ak to ide ---
+    labels = sorted(CLASS_NAMES.keys())
+    target_names = [CLASS_NAMES[i] for i in labels]
+
+    # robustné rozdelenie train/test: stratify len ak to ide
     class_counts = y.value_counts()
     too_small = class_counts[class_counts < 2]
 
     if len(too_small) > 0:
         print("\nPozor: niektoré triedy majú < 2 vzorky -> stratify vypínam.")
         print("Triedy s malým počtom:", too_small.to_dict())
-
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
@@ -147,17 +172,11 @@ def main():
 
     # model
     best_model = find_best_model(X_train_imp, y_train)
-
-    # predikcia
     y_pred = best_model.predict(X_test_imp)
-
-    # labely
-    labels = sorted(np.unique(y_test))
-    target_names = [str(x) for x in labels]
 
     print("\n--- Výsledok na testovacích dátach ---")
     print(f"Accuracy: {accuracy_score(y_test, y_pred) * 100:.2f} %")
-    print(f"MAE (priemerná odchýlka v bodoch): {mean_absolute_error(y_test, y_pred):.3f}")
+    print(f"MAE (priemerná odchýlka medzi kategóriami): {mean_absolute_error(y_test, y_pred):.3f}")
     print("\nClassification report:")
     print(classification_report(
         y_test, y_pred,
@@ -175,19 +194,19 @@ def main():
     )
     plt.xlabel("Predpovedané")
     plt.ylabel("Skutočné")
-    plt.title("Matica zámien (Confusion Matrix) - Feeling 1–10")
+    plt.title("Matica zámien (Confusion Matrix) - kategórie zdravotného pocitu")
     plt.tight_layout()
-    plt.savefig("outputs/matrix_feeling", bbox_inches="tight")
+    plt.savefig("outputs/matrix_feeling_categorised_binary_split.png", bbox_inches="tight")
     plt.show()
 
     # --- Feature importance ---
     importances = pd.Series(best_model.feature_importances_, index=X.columns).sort_values(ascending=False)
     plt.figure(figsize=(10, 6))
     importances.head(10).sort_values().plot(kind="barh")
-    plt.title("Top 10 faktorov ovplyvňujúcich zdravotný pocit (1–10)")
+    plt.title("Top 10 faktorov ovplyvňujúcich kategóriu zdravotného pocitu")
     plt.xlabel("Dôležitosť (Gini importance)")
     plt.tight_layout()
-    plt.savefig("outputs/factors_feeling.png", bbox_inches="tight")
+    plt.savefig("outputs/factors_feeling_categorised_binary_split.png", bbox_inches="tight")
     plt.show()
 
     # --- Dynamická vizualizácia stromu podľa skutočnej hĺbky ---
@@ -204,14 +223,14 @@ def main():
     plot_tree(
         best_model,
         feature_names=X.columns,
-        class_names=[str(i) for i in sorted(np.unique(y_train))],
+        class_names=[CLASS_NAMES[i] for i in sorted(CLASS_NAMES.keys())],
         filled=True,
         rounded=True,
         fontsize=8,
         max_depth=plot_depth
     )
     plt.title(f"Rozhodovací strom (zobrazené prvé {plot_depth} úrovne z {tree_depth})")
-    out_name = "outputs/final_tree_feeling.png"
+    out_name = "outputs/final_tree_feeling_categorised_binary_split.png"
     plt.savefig(out_name, bbox_inches="tight", dpi=300)
     plt.show()
     print(f"\nStrom uložený ako '{out_name}'")

@@ -108,12 +108,12 @@ def find_best_model(X_train, y_train):
 # --------------------------------------------------
 def main():
     #FILE_PATH = "dokaznik_merged.csv"
-    FILE_PATH = "Dokazník_merged_wo_datetime.csv"
-    FILE_PATH = "Dokazník_merged_wo_datetime_feeling_today.csv"
-    FILE_PATH = "Dokazník_merged_wo_datetime_feeling_today_sleep_avg.csv"
-    FILE_PATH = "Dokazník_merged_wo_dateTime_feelingToday_sleepAvg_sumBike.csv"
-    FILE_PATH = "Dokazník_merged_wo_dateTime_feelingToday_sleepAvg_sumBike_deletedDayOfExcercise.csv"
-    FILE_PATH = "Dokazník_merged_wo_dateTime_feelingToday_sleepAvg_sumBike_deletedDayOfExcercise_mergedActivityTime.csv"
+    FILE_PATH = "datasets/Dokazník_merged_wo_datetime.csv"
+    FILE_PATH = "datasets/Dokazník_merged_wo_datetime_feeling_today.csv"
+    FILE_PATH = "datasets/Dokazník_merged_wo_datetime_feeling_today_sleep_avg.csv"
+    FILE_PATH = "datasets/Dokazník_merged_wo_dateTime_feelingToday_sleepAvg_sumBike.csv"
+    FILE_PATH = "datasets/Dokazník_merged_wo_dateTime_feelingToday_sleepAvg_sumBike_deletedDayOfExcercise.csv"
+    FILE_PATH = "datasets/Dokazník_merged_wo_dateTime_feelingToday_sleepAvg_sumBike_deletedDayOfExcercise_mergedActivityTime.csv"
     #FILE_PATH = "Dokazník_merged_adjusted_v3.csv"
     
     #TARGET_COL = "Koľko hodín v priemere spíte?"
@@ -155,7 +155,9 @@ def main():
     plt.xlabel('Predpovedané')
     plt.ylabel('Skutočné')
     plt.title('Matica zámien (Confusion Matrix)')
+    plt.savefig("outputs/matrix_scoring", bbox_inches="tight")
     plt.show()
+    
 
     # --- FEATURE IMPORTANCE ---
     
@@ -165,7 +167,9 @@ def main():
     plt.title("Top 10 faktorov ovplyvňujúcich dĺžku spánku")
     plt.xlabel("Dôležitosť (Gini importance)")
     plt.tight_layout()
+    plt.savefig("outputs/factors_scoring.png", bbox_inches="tight")
     plt.show()
+    
 
     # --- VIZUALIZÁCIA STROMU ---
     plt.figure(figsize=(26, 14))
@@ -176,10 +180,10 @@ def main():
         filled=True,
         rounded=True,
         fontsize=9,
-        max_depth=3 # Limitujeme vizualizáciu na 3 úrovne pre čitateľnosť, hoci strom môže byť hlbší
+        max_depth=4
     )
     plt.title("Rozhodovací strom (Vizualizácia prvých úrovní)")
-    plt.savefig("final_tree_classification.png", bbox_inches="tight")
+    plt.savefig("outputs/final_tree_classification_scoring.png", bbox_inches="tight")
     plt.show()
 
     print("\nStrom bol uložený ako 'final_tree_classification.png'")
