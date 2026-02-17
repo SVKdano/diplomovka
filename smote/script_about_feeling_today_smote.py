@@ -40,27 +40,21 @@ def load_and_preprocess_data(file_path: str, target_col: str) -> tuple[pd.DataFr
             f"Dostupné stĺpce: {list(df.columns)}"
         )
 
-    # odstráň riadky bez cieľa
     df = df.dropna(subset=[target_col]).copy()
 
-    # auto-drop vysoko unikátnych textových stĺpcov (ID, timestampy, poznámky...)
     bad_cols = auto_detect_columns_to_drop(df)
     if bad_cols:
         df = df.drop(columns=bad_cols)
 
-    # y -> numeric -> int
     y = pd.to_numeric(df[target_col], errors="coerce")
     X = df.drop(columns=[target_col])
 
-    # ponechaj len validné hodnoty 1–10
     valid_mask = y.between(1, 10)
     X = X.loc[valid_mask].copy()
     y = y.loc[valid_mask].astype(int)
 
-    # iba numerické vstupy
     X = X.select_dtypes(include=[np.number]).copy()
 
-    # odstráň konštantné stĺpce
     nun = X.nunique(dropna=False)
     const_cols = nun[nun <= 1].index.tolist()
     if const_cols:
@@ -75,7 +69,7 @@ def load_and_preprocess_data(file_path: str, target_col: str) -> tuple[pd.DataFr
 
 
 # --------------------------------------------------
-# 3) Hľadanie najlepšieho modelu (dynamické CV)
+# 3) Hľadanie najlepšieho modelu
 # --------------------------------------------------
 def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeClassifier:
     param_grid = {
@@ -91,9 +85,8 @@ def find_best_model(X_train: pd.DataFrame, y_train: pd.Series) -> DecisionTreeCl
         class_weight="balanced"
     )
 
-    # dynamické CV: nesmie byť viac foldov ako min počet vzoriek v triede
     min_class = int(y_train.value_counts().min())
-    cv_folds = int(max(2, min(10, min_class)))  # aspoň 2, max 10
+    cv_folds = int(max(2, min(10, min_class)))
 
     print("\nSpúšťam GridSearch...")
     print(f"Min počet vzoriek v triede (train): {min_class} -> používam cv={cv_folds}")
@@ -124,7 +117,25 @@ def main():
 
     X, y = load_and_preprocess_data(FILE_PATH, TARGET_COL)
 
-    # --- robustné rozdelenie train/test: stratify len ak to ide ---
+    # --------------------------------------------------
+    # Výpis korelácií s cieľovou premennou
+    # --------------------------------------------------
+    print("\n--- Korelácia jednotlivých feature s cieľovou premennou ---")
+
+    tmp = X.copy()
+    tmp["TARGET"] = y
+
+    corr_matrix = tmp.corr(numeric_only=True)
+    target_corr = corr_matrix["TARGET"].drop("TARGET")
+
+    # zoradiť podľa absolútnej hodnoty
+    target_corr_sorted = target_corr.reindex(target_corr.abs().sort_values(ascending=False).index)
+
+    print(target_corr_sorted)
+
+    # --------------------------------------------------
+    # Train/Test split
+    # --------------------------------------------------
     class_counts = y.value_counts()
     too_small = class_counts[class_counts < 2]
 
@@ -140,18 +151,14 @@ def main():
             X, y, test_size=0.2, random_state=42, stratify=y
         )
 
-    # imputácia chýbajúcich hodnôt
     imputer = SimpleImputer(strategy="median")
     X_train_imp = pd.DataFrame(imputer.fit_transform(X_train), columns=X.columns, index=X_train.index)
     X_test_imp = pd.DataFrame(imputer.transform(X_test), columns=X.columns, index=X_test.index)
 
-    # model
     best_model = find_best_model(X_train_imp, y_train)
 
-    # predikcia
     y_pred = best_model.predict(X_test_imp)
 
-    # labely
     labels = sorted(np.unique(y_test))
     target_names = [str(x) for x in labels]
 
@@ -166,37 +173,26 @@ def main():
         zero_division=0
     ))
 
-    # --- Confusion matrix ---
     plt.figure(figsize=(10, 8))
     cm = confusion_matrix(y_test, y_pred, labels=labels)
-    sns.heatmap(
-        cm, annot=True, fmt="d", cmap="Blues",
-        xticklabels=target_names, yticklabels=target_names
-    )
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+                xticklabels=target_names, yticklabels=target_names)
     plt.xlabel("Predpovedané")
     plt.ylabel("Skutočné")
     plt.title("Matica zámien (Confusion Matrix) - Feeling 1–10")
     plt.tight_layout()
-    plt.savefig("outputs/matrix_feeling", bbox_inches="tight")
+    plt.savefig("outputs/matrix_feeling.png", bbox_inches="tight")
     plt.show()
 
-    # --- Feature importance ---
     importances = pd.Series(best_model.feature_importances_, index=X.columns).sort_values(ascending=False)
-    plt.figure(figsize=(10, 6))
-    importances.head(10).sort_values().plot(kind="barh")
-    plt.title("Top 10 faktorov ovplyvňujúcich zdravotný pocit (1–10)")
-    plt.xlabel("Dôležitosť (Gini importance)")
-    plt.tight_layout()
-    plt.savefig("outputs/factors_feeling.png", bbox_inches="tight")
-    plt.show()
+    print("\n--- Feature importance ---")
+    print(importances)
 
-    # --- Dynamická vizualizácia stromu podľa skutočnej hĺbky ---
     tree_depth = best_model.get_depth()
     tree_leaves = best_model.get_n_leaves()
     print(f"\nSkutočná hĺbka stromu: {tree_depth}")
     print(f"Počet listov (leaves): {tree_leaves}")
 
-    # zobraz celý, ak je malý, inak obmedz (napr. na 5)
     plot_depth = tree_depth if tree_depth <= 5 else 5
     print(f"Zobrazujem do hĺbky: {plot_depth}")
 
