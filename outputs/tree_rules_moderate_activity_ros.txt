@@ -1,0 +1,34 @@
+|--- Koľko minút ste strávili sedením za posledných 7 dní? <= 390.00
+|   |--- Koľkokrát do týždňa využívate bicykel na cestu do školy? <= 7.50
+|   |   |--- Fajčíte? (1-každý deň, 2-niekedy, 0-nie) <= 1.50
+|   |   |   |--- Koľkokrát do týždňa využívate súkromnú dopravu na cestu do školy? <= 3.00
+|   |   |   |   |--- Koľko hodín týždenne robíte neplatenú prácu popri štúdiu <= 5.50
+|   |   |   |   |   |--- class: 0
+|   |   |   |   |--- Koľko hodín týždenne robíte neplatenú prácu popri štúdiu >  5.50
+|   |   |   |   |   |--- class: 1
+|   |   |   |--- Koľkokrát do týždňa využívate súkromnú dopravu na cestu do školy? >  3.00
+|   |   |   |   |--- class: 0
+|   |   |--- Fajčíte? (1-každý deň, 2-niekedy, 0-nie) >  1.50
+|   |   |   |--- class: 1
+|   |--- Koľkokrát do týždňa využívate bicykel na cestu do školy? >  7.50
+|   |   |--- class: 1
+|--- Koľko minút ste strávili sedením za posledných 7 dní? >  390.00
+|   |--- Koľko hodín týždenne robíte fyzickú aktivitu <= 2.50
+|   |   |--- Koľko hodín v priemere spíte? <= 5.65
+|   |   |   |--- class: 1
+|   |   |--- Koľko hodín v priemere spíte? >  5.65
+|   |   |   |--- Koľko hodín týždenne robíte neplatenú prácu popri štúdiu <= 2.00
+|   |   |   |   |--- class: 0
+|   |   |   |--- Koľko hodín týždenne robíte neplatenú prácu popri štúdiu >  2.00
+|   |   |   |   |--- class: 1
+|   |--- Koľko hodín týždenne robíte fyzickú aktivitu >  2.50
+|   |   |--- Koľkokrát do týždňa využívate verejnú dopravu na cestu do školy? <= 6.00
+|   |   |   |--- Koľkokrát do týždňa využívate bicykel na cestu do školy? <= 7.50
+|   |   |   |   |--- Koľko hodín v priemere spíte? <= 7.45
+|   |   |   |   |   |--- class: 0
+|   |   |   |   |--- Koľko hodín v priemere spíte? >  7.45
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |--- Koľkokrát do týždňa využívate bicykel na cestu do školy? >  7.50
+|   |   |   |   |--- class: 0
+|   |   |--- Koľkokrát do týždňa využívate verejnú dopravu na cestu do školy? >  6.00
+|   |   |   |--- class: 0

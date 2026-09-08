@@ -1,0 +1,7 @@
+|--- Koľko minút ste strávili sedením za posledných 7 dní? <= 570.00
+|   |--- class: 0
+|--- Koľko minút ste strávili sedením za posledných 7 dní? >  570.00
+|   |--- Koľko km je od Vášho domu ku fakulte? <= 4.50
+|   |   |--- class: 1
+|   |--- Koľko km je od Vášho domu ku fakulte? >  4.50
+|   |   |--- class: 0

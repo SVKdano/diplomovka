@@ -1,0 +1,10 @@
+|--- Koľko hodín týždenne robíte fyzickú aktivitu <= 2.50
+|   |--- Koľko hodín v priemere spíte? <= 8.95
+|   |   |--- class: 0
+|   |--- Koľko hodín v priemere spíte? >  8.95
+|   |   |--- class: 1
+|--- Koľko hodín týždenne robíte fyzickú aktivitu >  2.50
+|   |--- Koľkokrát do týždňa využívate bicykel na cestu do školy? <= 8.50
+|   |   |--- class: 1
+|   |--- Koľkokrát do týždňa využívate bicykel na cestu do školy? >  8.50
+|   |   |--- class: 0

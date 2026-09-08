@@ -1,3 +1,5 @@
+#POUŽI TENTO SÚBOR!!!
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -116,9 +118,10 @@ def main():
     FILE_PATH = "datasets/Dokazník_merged_wo_dateTime_feelingToday_sleepAvg_sumBike_deletedDayOfExcercise_mergedActivityTime.csv"
     #FILE_PATH = "Dokazník_merged_adjusted_v3.csv"
     
-    #TARGET_COL = "Koľko hodín v priemere spíte?"
+    TARGET_COL = "Koľko hodín v priemere spíte?"
     #TARGET_COL = "Koľko hodín v priemere spíte cez pracovný deň?"
-    TARGET_COL = "Koľko hodín spíte v priemere"
+    #TARGET_COL = "Koľko hodín spíte v priemere"
+    #TARGET_COL = "Koľko minút ste počas minulého týždňa venovali fyzickej aktivite? "
 
     df = load_and_preprocess_data(FILE_PATH, TARGET_COL)
 
