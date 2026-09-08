@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t("summary_title") }}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='summary.css') }}">
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="card">
+
+      <div class="lang-switch">
+        <a class="lang-link" href="{{ url_for('set_language', lang_code='sk') }}">{{ t("lang_sk") }}</a>
+        <a class="lang-link" href="{{ url_for('set_language', lang_code='en') }}">{{ t("lang_en") }}</a>
+      </div>
+
+      <h1>{{ t("summary_title") }}</h1>
+
+      <ol class="summary-list">
+        {% for item in answers %}
+          <li class="summary-item">
+            <span class="question-text">{{ item.label }}</span>
+            <span class="answer-text">— {{ item.value }}</span>
+          </li>
+        {% endfor %}
+      </ol>
+
+      <div class="action-links">
+        <a href="/" class="back-link">{{ t("fill_again") }}</a>
+        <a href="{{ url_for('suggestions') }}" class="back-link">{{ t("suggestions") }}</a>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
