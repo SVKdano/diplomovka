@@ -1,11 +1,5 @@
 # healt_overenie_v6_targets_auto_values.py
 # ------------------------------------------------------------
-# Targeted association rules with:
-# - per-(target,value) LIFT overrides (Option B)
-# - AUTO values for a target if values=None (useful when you recode to 3 categories)
-# - TOP 10 rules for EACH target AND EACH consequent value
-# - diagnostics + target_value_counts sheets
-#
 # Install:
 #   pip install pandas openpyxl mlxtend
 # ------------------------------------------------------------
@@ -21,24 +15,19 @@ import pandas as pd
 from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import apriori, association_rules
 
-# -------------------- CONFIG --------------------
 INPUT_PATH = "datasets/Dokazník_merged_association_rules_copy_copy.xlsx"
 OUTPUT_EXCEL = "outputs/dokaznik_targeted_assoc_output_final.xlsx"
 OUTPUT_ONEHOT_XLSX = "outputs/dokaznik_onehot_targeted_final.xlsx"  # optional inspection
 
-MIN_SUPPORT = 0.05        # ~6 respondents if N≈117
+MIN_SUPPORT = 0.05       
 MAX_LEN = 3
 MIN_CONFIDENCE = 0.65
 
-# Default lift threshold for most targets
 MIN_LIFT_DEFAULT = 1.15
 
-# Option B: per-value lift overrides
 MIN_LIFT_OVERRIDES = {
-    ("HealthFeel", "1"): 1.05,  # dominant class; otherwise no rules pass lift
-    ("HealthFeel", "0"): 1.50,  # minority/risk class; require stronger rules
-    # Example if you later need it:
-    # ("MotivationPA", "HIGH"): 1.10,
+    ("HealthFeel", "1"): 1.05,  
+    ("HealthFeel", "0"): 1.50, 
 }
 
 KEEP_MISSING_AS_CATEGORY = False
@@ -51,10 +40,6 @@ DROP_COLNAME_PATTERNS = [
 
 TOP_K = 10
 
-# ---- TARGET QUESTIONS ----
-# values:
-#  - set of allowed values as strings (e.g., {"0","1","2"})
-#  - OR None => auto-detect values present for that target in the rules
 TARGETS = [
     {
         "key": "HealthFeel",
@@ -189,28 +174,22 @@ def main() -> None:
     if not in_path.exists():
         raise FileNotFoundError(f"Input file not found: {INPUT_PATH}")
 
-    # 1) Load
     raw = pd.read_excel(INPUT_PATH)
 
-    # 2) Drop date/time-like columns
     keep_cols = [c for c in raw.columns if not should_drop_col(c)]
     df = raw[keep_cols].copy()
 
-    # 3) Question map
     qmap = build_question_map(df)
     qmap_df = pd.DataFrame(
         [{"question_number": q, "question_text": t} for q, t in qmap.items()]
     )
 
-    # 4) Transactions + onehot
     transactions = build_transactions(df, qmap)
     onehot = onehot_encode(transactions)
 
-    # Optional: save onehot
     with pd.ExcelWriter(OUTPUT_ONEHOT_XLSX, engine="openpyxl") as w:
         onehot.astype(int).to_excel(w, index=False, sheet_name="onehot")
 
-    # 5) Itemsets
     itemsets = apriori(
         onehot,
         min_support=MIN_SUPPORT,
@@ -218,20 +197,17 @@ def main() -> None:
         max_len=MAX_LEN
     ).sort_values("support", ascending=False)
 
-    # 6) Rules (confidence filter only here)
     rules = association_rules(
         itemsets,
         metric="confidence",
         min_threshold=MIN_CONFIDENCE
     ).copy()
 
-    # Add readable columns + lengths
     rules["antecedents_len"] = rules["antecedents"].apply(len)
     rules["consequents_len"] = rules["consequents"].apply(len)
     rules["antecedents_str"] = rules["antecedents"].apply(set_to_str)
     rules["consequents_str"] = rules["consequents"].apply(set_to_str)
 
-    # Only X -> single category
     single = rules[rules["consequents_len"] == 1].copy()
 
     diag_rows = [{
@@ -256,21 +232,16 @@ def main() -> None:
         print("DONE (no single-consequent rules).")
         return
 
-    # Extract consequent info
     single["consequent_item"] = single["consequents"].apply(lambda fs: next(iter(fs)))
     single[["consequent_qnum", "consequent_question", "consequent_value"]] = single["consequent_item"].apply(
         lambda x: pd.Series(parse_item(x))
     )
 
-    # Match targets
     single["target_key"] = single["consequent_question"].apply(
         lambda qt: (match_target(qt) or {}).get("key")
     )
     targeted_any = single[single["target_key"].notna()].copy()
 
-    # Determine allowed values per target:
-    # - if TARGETS[i]["values"] is a set => use it
-    # - if None => auto from data (present in targeted_any for that target)
     allowed_map: Dict[str, Optional[set]] = {t["key"]: (set(t["values"]) if t["values"] is not None else None) for t in TARGETS}
 
     auto_values_map: Dict[str, List[str]] = {}
@@ -282,25 +253,22 @@ def main() -> None:
         else:
             auto_values_map[key] = sort_values_nicely(list(allowed_map[key]))
 
-    # Allowed values filter
     def allowed_value(row) -> bool:
         key = row["target_key"]
         val = str(row["consequent_value"])
-        # If no values specified, allow all values seen for that key
+
         if allowed_map[key] is None:
             return True
         return val in allowed_map[key]
 
     targeted_any = targeted_any[targeted_any.apply(allowed_value, axis=1)].copy()
 
-    # Apply per-(target,value) lift thresholds
     targeted_any["min_lift_required"] = targeted_any.apply(
         lambda r: required_lift(r["target_key"], str(r["consequent_value"])),
         axis=1
     )
     targeted = targeted_any[targeted_any["lift"] >= targeted_any["min_lift_required"]].copy()
 
-    # Diagnostics per target + value counts
     value_counts_rows = []
     for t in TARGETS:
         key = t["key"]
@@ -318,7 +286,6 @@ def main() -> None:
             "max_lift_after": float(after_lift["lift"].max()) if len(after_lift) else None,
         })
 
-        # per value counts
         if len(before_lift):
             vc = before_lift["consequent_value"].astype(str).value_counts().to_dict()
             for v in auto_values_map[key]:
@@ -339,13 +306,11 @@ def main() -> None:
                     "rules_count_after_lift": 0,
                 })
 
-    # Sort rules by quality for TOP-K
     targeted = targeted.sort_values(
         by=["lift", "confidence", "support"],
         ascending=[False, False, False]
     )
 
-    # TOP 10 per (target_key, value)
     top10 = (
         targeted.groupby(["target_key", "consequent_value"], group_keys=False)
         .head(TOP_K)
@@ -365,17 +330,14 @@ def main() -> None:
     ]
     top10_out = top10[out_cols].copy()
 
-    # Export
     with pd.ExcelWriter(OUTPUT_EXCEL, engine="openpyxl") as writer:
         qmap_df.to_excel(writer, index=False, sheet_name="question_map")
 
-        # Frequent itemsets readable
         itemsets_out = itemsets.copy()
         itemsets_out["itemsets_str"] = itemsets_out["itemsets"].apply(set_to_str)
         itemsets_out = itemsets_out[["support", "itemsets_str"]]
         itemsets_out.to_excel(writer, index=False, sheet_name="frequent_itemsets")
 
-        # Rules after confidence (readable)
         rules_out_cols = [
             "antecedents_str", "consequents_str",
             "support", "confidence", "lift",
@@ -384,14 +346,11 @@ def main() -> None:
         ]
         rules[rules_out_cols].to_excel(writer, index=False, sheet_name="rules_all_conf")
 
-        # Top10 stacked
         top10_out.to_excel(writer, index=False, sheet_name="targeted_top10_all")
 
-        # Diagnostics and target value counts
         pd.DataFrame(diag_rows).to_excel(writer, index=False, sheet_name="diagnostics")
         pd.DataFrame(value_counts_rows).to_excel(writer, index=False, sheet_name="target_value_counts")
 
-        # One sheet per target-value (always)
         for t in TARGETS:
             key = t["key"]
             for val in auto_values_map[key]:

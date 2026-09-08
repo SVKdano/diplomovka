@@ -1,0 +1,46 @@
+|--- Koľko minút ste počas minulého týždňa venovali náročnej fyzickej aktivite? (heavylifting, vysoké tempo pri behu alebo bicyklovaní) <= 58.33
+|   |--- Koľko hodín týždenne robíte fyzickú aktivitu <= 4.93
+|   |   |--- Koľkokrát do týždňa využívate chôdzu na cestu do školy? <= 0.04
+|   |   |   |--- Pohlavie (1-žena, 0-muž) <= 0.50
+|   |   |   |   |--- Koľko km je od Vášho domu ku fakulte? <= 10.12
+|   |   |   |   |   |--- class: 1
+|   |   |   |   |--- Koľko km je od Vášho domu ku fakulte? >  10.12
+|   |   |   |   |   |--- class: 0
+|   |   |   |--- Pohlavie (1-žena, 0-muž) >  0.50
+|   |   |   |   |--- class: 1
+|   |   |--- Koľkokrát do týždňa využívate chôdzu na cestu do školy? >  0.04
+|   |   |   |--- Koľkokrát do týždňa využívate verejnú dopravu na cestu do školy? <= 0.24
+|   |   |   |   |--- class: 1
+|   |   |   |--- Koľkokrát do týždňa využívate verejnú dopravu na cestu do školy? >  0.24
+|   |   |   |   |--- class: 0
+|   |--- Koľko hodín týždenne robíte fyzickú aktivitu >  4.93
+|   |   |--- class: 1
+|--- Koľko minút ste počas minulého týždňa venovali náročnej fyzickej aktivite? (heavylifting, vysoké tempo pri behu alebo bicyklovaní) >  58.33
+|   |--- Fajčíte? (1-každý deň, 2-niekedy, 0-nie) <= 1.06
+|   |   |--- Som motivovaný vykonávať fyzickú aktivitu? (1- úplne súhlasím, 2-súhlasím, 3-neutrálny postoj, 4-nesúhlasím, 5- úplne nesúhlasím) <= 1.99
+|   |   |   |--- Koľkokrát do týždňa využívate verejnú dopravu na cestu do školy? <= 9.93
+|   |   |   |   |--- Pracujete popri štúdiu? (1 - áno, 0 - nie) <= 0.96
+|   |   |   |   |   |--- truncated branch of depth 3
+|   |   |   |   |--- Pracujete popri štúdiu? (1 - áno, 0 - nie) >  0.96
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |--- Koľkokrát do týždňa využívate verejnú dopravu na cestu do školy? >  9.93
+|   |   |   |   |--- class: 1
+|   |   |--- Som motivovaný vykonávať fyzickú aktivitu? (1- úplne súhlasím, 2-súhlasím, 3-neutrálny postoj, 4-nesúhlasím, 5- úplne nesúhlasím) >  1.99
+|   |   |   |--- Koľkokrát do týždňa využívate chôdzu na cestu do školy? <= 4.00
+|   |   |   |   |--- Koľko minút ste počas minulého týždňa venovali mierne náročnej fyzickej aktivite?  <= 45.00
+|   |   |   |   |   |--- class: 1
+|   |   |   |   |--- Koľko minút ste počas minulého týždňa venovali mierne náročnej fyzickej aktivite?  >  45.00
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |--- Koľkokrát do týždňa využívate chôdzu na cestu do školy? >  4.00
+|   |   |   |   |--- Koľko minút ste počas minulého týždňa venovali nenáročnej fyzickej aktivite?  <= 50.00
+|   |   |   |   |   |--- class: 0
+|   |   |   |   |--- Koľko minút ste počas minulého týždňa venovali nenáročnej fyzickej aktivite?  >  50.00
+|   |   |   |   |   |--- class: 1
+|   |--- Fajčíte? (1-každý deň, 2-niekedy, 0-nie) >  1.06
+|   |   |--- Najvyššie dosiahnuté vzdelanie otca (1 - základné, 2 - stredoškolské a 3 - vysokoškolské) <= 2.01
+|   |   |   |--- class: 0
+|   |   |--- Najvyššie dosiahnuté vzdelanie otca (1 - základné, 2 - stredoškolské a 3 - vysokoškolské) >  2.01
+|   |   |   |--- Koľko km je od Vášho domu ku fakulte? <= 5.29
+|   |   |   |   |--- class: 2
+|   |   |   |--- Koľko km je od Vášho domu ku fakulte? >  5.29
+|   |   |   |   |--- class: 2

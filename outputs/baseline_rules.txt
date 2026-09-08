@@ -1,0 +1,4 @@
+--- BASELINE PRAVIDLO ---
+DummyClassifier(strategy='most_frequent') vždy predikuje triedu: 1
+Interpretácia:
+Akýkoľvek vstup -> class: 1

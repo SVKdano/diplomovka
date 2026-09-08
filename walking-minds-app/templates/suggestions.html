@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t("suggestions") }}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='summary.css') }}">
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="card">
+
+      <div class="lang-switch">
+        <a class="lang-link" href="{{ url_for('set_language', lang_code='sk') }}">{{ t("lang_sk") }}</a>
+        <a class="lang-link" href="{{ url_for('set_language', lang_code='en') }}">{{ t("lang_en") }}</a>
+      </div>
+
+      <h1>{{ t("suggestions") }}</h1>
+
+      <div class="suggestion-box">
+        <strong>{{ t("prediction_tree") }}:</strong>
+        {% if tree_result %}
+          <p>{{ tree_result }}</p>
+        {% else %}
+          <p>{{ t("no_suggestion") }}</p>
+        {% endif %}
+      </div>
+
+      <div class="suggestion-box">
+        <strong>{{ t("recommended_changes") }}:</strong>
+
+        {% if association_results and association_results|length > 0 %}
+          <ul class="suggestion-list">
+            {% for group_key, items in association_results.items() %}
+              <li>
+                <strong>{{ t(group_key) }}</strong>
+                <ul class="suggestion-sublist">
+                  {% for item in items %}
+                    <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>{{ t("no_recommended_changes") }}</p>
+        {% endif %}
+      </div>
+
+      <div class="action-links">
+        <a href="{{ url_for('summary') }}" class="back-link">← {{ t("back_to_summary") }}</a>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
